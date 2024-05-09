@@ -20,6 +20,7 @@ struct fake_i2c_nbm {
 };
 
 struct fake_i2c_nbm fake_nbm_device = {
+    /* initialise as default */
     .registers = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x09, 0x80, 0x80, 0x00, 0x00},
     .addr = NBM_I2C_ADDR_0x2F,
     .reg_ptr = NULL
@@ -66,11 +67,12 @@ void hard_fault_handler(uint8_t errno) {
 
 /* test out the library with the fake nbm device */
 int main() {
+
     uint8_t misc_val;
     uint32_t chenergy;
-
     struct NbmDevice nbm;
 
+    /* note we dont give a correct i2c address here */
     nbm_init(&nbm, NBM5100A, 0, 
             user_impl_write_bytes_fcn, user_impl_read_bytes_fcn, hard_fault_handler);
 
@@ -87,12 +89,14 @@ int main() {
     printf("value of misc_val is: %d\n", misc_val);
     printf("dev errno is: %d\n\n", nbm.error_code);
     nbm.error_code = 0;
+
+    /* fix the nbm_init() i2c_addr based fup */
     nbm.i2c_addr = NBM_I2C_ADDR_0x2F;
 
     printf("expect invlaid fields error\n");
-    nbm_write_field(&nbm, 01, 1);
+    nbm_write_field(&nbm, 0x01, 1);
     printf("dev errno is: %d\n", nbm.error_code);
-    nbm_read_field(&nbm, 01, &misc_val);
+    nbm_read_field(&nbm, 0x01, &misc_val);
     printf("value of misc_val is: %d\n", misc_val);
     printf("dev errno is: %d\n\n", nbm.error_code);
     nbm.error_code = 0;
@@ -116,11 +120,35 @@ int main() {
     nbm.error_code = 0;
 
     printf("expect no error and value of 1 for field and 32 for register\n");  
-    nbm_write_field(&nbm, nbm_field_enbal, 1);
+    nbm_write_field(&nbm, nbm_field_enbal, NBM_ENBAL_VAL_ACTIVE);
     nbm_read_field(&nbm, nbm_field_enbal, &misc_val);
     printf("value of misc_val is: %d\n", misc_val);
     nbm_read_reg(&nbm, nbm_reg_set4, &misc_val, 1);
-    printf("value of misc_val reg is: %d\n", misc_val);
-    printf("dev errno is: %d\n", nbm.error_code);
+    printf("value of misc_val reg is: %d [%d]\n", misc_val, misc_val == NBM_ENBAL_VAL_ACTIVE);
+    printf("dev errno is: %d\n\n", nbm.error_code);
+
+    printf("expect no error and read from the special case of cherngy as 67305985\n");
+    /* fake it so its not zero first should be 67305985 == (1 << 24 | 2 << 16 | 3 << 8 | 4 << 0) */
+    fake_nbm_device.registers[1] = 0x01;
+    fake_nbm_device.registers[2] = 0x02;
+    fake_nbm_device.registers[3] = 0x03;
+    fake_nbm_device.registers[4] = 0x04;
+    /* note using a uint8_t here would be likely cause segfault or nuke nbm */
+    nbm_read_field(&nbm, nbm_field_chengy, &chenergy);
+    printf("value of chenergy is: %d\n", chenergy);
+    printf("dev errno is: %d\n\n", nbm.error_code);
     nbm.error_code = 0;
+
+    printf("expect no error and correct handing of the special prof field so read back " \
+        "37 and for the regs get 2 and 80 \n");
+    fake_nbm_device.registers[nbm_reg_command] = 0x00;  
+    fake_nbm_device.registers[nbm_reg_profile_msb] = 0x00; 
+    nbm_write_field(&nbm, nbm_field_prof, NBM_PROF_VAL_PROFILE(37));
+    nbm_read_field(&nbm, nbm_field_prof, &misc_val);
+    printf("value of misc_val is: %d\n", misc_val);
+    nbm_read_reg(&nbm, nbm_reg_profile_msb, &misc_val, 1);
+    printf("value of misc_val reg is: %d\n", misc_val);
+    nbm_read_reg(&nbm, nbm_reg_command, &misc_val, 1);
+    printf("value of misc_val reg is: %d\n", misc_val);
+    printf("dev errno is: %d\n\n", nbm.error_code);
 }
