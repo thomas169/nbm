@@ -12,9 +12,9 @@
 #include "nbm.h"
 
 #define GET_REG_FROM_FIELD(field) ((field) >> 12 & 0xF)
-#define GET_MSB_POS_FROM_FIELD(field) ((field) >> 8 & 0xF)
-#define GET_LSB_POS_FROM_FIELD(field) ((field) >> 5 & 0x7)
-#define GET_MASK_FROM_FIELD(field) (1 << (GET_MSB_POS_FROM_FIELD(field) - GET_LSB_POS_FROM_FIELD(field)))
+#define GET_MSB_POS_FROM_FIELD(field) ((field) >> 5 & 0x7)
+#define GET_LSB_POS_FROM_FIELD(field) ((field) >> 2 & 0x7)
+#define GET_MASK_FROM_FIELD(field) ((1 << (GET_MSB_POS_FROM_FIELD(field) - GET_LSB_POS_FROM_FIELD(field) + 1)) - 1)
 #define GET_LENGTH_FROM_FIELD(field) (GET_MSB_POS_FROM_FIELD(field) - GET_LSB_POS_FROM_FIELD(field) + 1)
 #define GET_DEVICE_FROM_FIELD(field) ((field) >> 2 & 0x7)
 #define GET_SOLO_IN_REG_FROM_FIELD(field) ((field) >> 1 & 0x1)
@@ -73,15 +73,15 @@ void nbm_write_field(struct NbmDevice *dev, enum NbmFields field, uint8_t value)
 
     /* sanitise the value and return error if value not valid, dont do it for the
      * the prof field however as mask will be wrong if upper 2 bits are set */
-    if (field == nbm_field_prof)
-        masked_value = value;
-    else
-        masked_value = value & GET_MASK_FROM_FIELD(field);
+    masked_value = value & GET_MASK_FROM_FIELD(field);
 
-    if (value != masked_value) {
+    if (value != masked_value && field != nbm_field_prof) {
         dev->error_code |= NBM_ERROR_INVALID_VALUE;
         return;
-    } 
+    } else if (field == nbm_field_prof) {
+        value = value >> 0x4 & 0x3;
+    }
+    
 
     /* if the field is alone in the given register we avoid the need to read it
      * before any writes, and subsquent faffing around with bit shifting. */
@@ -95,7 +95,6 @@ void nbm_write_field(struct NbmDevice *dev, enum NbmFields field, uint8_t value)
     /* Note there is no special handling of chenergy as its not writable */
     switch (field) {
         case nbm_field_prof:
-            value = value >> 0x4 & 0x3;
             dev->error_code |= dev->write_bytes_fcn(dev->i2c_addr, nbm_reg_profile_msb, &value, 1);
             dev->error_code |= dev->write_bytes_fcn(dev->i2c_addr, reg, &masked_value, 1);
             break;
@@ -118,7 +117,7 @@ void nbm_read_field(struct NbmDevice *dev, enum NbmFields field, void *value) {
             dev->error_code |= dev->read_bytes_fcn(dev->i2c_addr, nbm_reg_profile_msb, &tmp, 1);
             dev->error_code |= dev->read_bytes_fcn(dev->i2c_addr, GET_REG_FROM_FIELD(field), (uint8_t*) value, 1);
             /* read bottom 2 bits of tmp and shift above top 4 bits of value */
-            tmp = tmp & 0x3 << 0x4;
+            tmp = (tmp & 0x3) << 0x4;
             (*(uint8_t*)value) = 
                 tmp | ((*(uint8_t*)value) >> GET_LSB_POS_FROM_FIELD(field) & GET_MASK_FROM_FIELD(field));
             break;
