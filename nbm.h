@@ -104,22 +104,22 @@ enum NbmFields {
 #define NBM_LOWBAT_VAL_VBAT_LOW 1
 #define NBM_LOWBAT_VAL_VBAT_GOOD 0
 
-#define NBM_EW_VAL_VCAP_LOW
+#define NBM_EW_VAL_VCAP_LOW 1
 #define NBM_EW_VAL_VCAP_GOOD 0
 
 #define NBM_ALRM_VAL_ILOAD_GOOD 0
-#define NBM_ALRM_VAL_ILOAD_TO_HIGH 0
+#define NBM_ALRM_VAL_ILOAD_TO_HIGH 1
 
-#define NBM_RDY_VAL_STATUS_SET 0
-#define NBM_RDY_VAL_STATUS_UNSET 0
+#define NBM_RDY_VAL_CAP_CHARGED 1
+#define NBM_RDY_VAL_CAP_NOT_CHARGED_OR_RESET 0
 
-#define NBM_EOD_VAL_ON_DEMAND_ENABLE 0
+#define NBM_EOD_VAL_ON_DEMAND_ENABLE 1
 #define NBM_EOD_VAL_ON_DEMAND_INACTIVE 0
 
-#define NBM_ECM_VAL_CONTINUOUS_MODE_ENABLE 0
+#define NBM_ECM_VAL_CONTINUOUS_MODE_ENABLE 1
 #define NBM_ECM_VAL_CONTINUOUS_MODE_INACTIVE 0
 
-#define NBM_ACT_VAL_FORCE_ACTIVE_ENABLE 0
+#define NBM_ACT_VAL_FORCE_ACTIVE_ENABLE 1
 #define NBM_ACT_VAL_FORCE_ACTIVE_INACTIVE 0
 
 #define NBM_RSTPF_VAL_RESET_PROFILER_INACTIVE 0
@@ -190,7 +190,7 @@ enum NbmFields {
 
 #define NBM_PROF_VAL_NO_OPTIMISER 0
 /* cba writing out 64 terms for the profile */
-#define NBM_VEW_VAL_PROFILE(x) \
+#define NBM_PROF_VAL_PROFILE(x) \
     ((uint8_t)(((uint8_t)(x)) > 63 ? 63 : ((uint8_t)(x)) < 1 ? 1 : (x)))
 
 #define NBM_OPT_MARG_VAL_INACITVE 0
@@ -231,7 +231,6 @@ enum NbmFields {
 #define NBM_VCAP_VAL_5V34 30
 #define NBM_VCAP_VAL_5V54 31
 
-
 #define NBM_VCAP_VAL_1mA10 27
 #define NBM_VCAP_VAL_2mA30 28
 #define NBM_VCAP_VAL_3mA15 29
@@ -239,7 +238,6 @@ enum NbmFields {
 
 #define NBM_ENBAL_VAL_INACTIVE 0
 #define NBM_ENBAL_VAL_ACTIVE 1
-
 
 /* main user faceing datatype NbmDevice */
 struct NbmDevice {
