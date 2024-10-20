@@ -231,10 +231,10 @@ enum NbmFields {
 #define NBM_VCAP_VAL_5V34 30
 #define NBM_VCAP_VAL_5V54 31
 
-#define NBM_VCAP_VAL_1mA10 27
-#define NBM_VCAP_VAL_2mA30 28
-#define NBM_VCAP_VAL_3mA15 29
-#define NBM_VCAP_VAL_4mA90 30
+#define NBM_VCAP_VAL_1mA10 0
+#define NBM_VCAP_VAL_2mA30 1
+#define NBM_VCAP_VAL_3mA15 2
+#define NBM_VCAP_VAL_4mA90 3
 
 #define NBM_ENBAL_VAL_INACTIVE 0
 #define NBM_ENBAL_VAL_ACTIVE 1
