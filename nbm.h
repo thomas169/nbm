@@ -9,11 +9,18 @@
  * SPDX-License-Identifier: Apache-2.0 
  */
 
+#ifndef NBM_H_
+#define NBM_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 
 /* todo: implent use of these, currently makes no difference */
-enum NbmDevices { 
+enum nbm_types { 
     NBM5100A = 1,
     NBM5100B = 2,
     NBM7100A = 4,
@@ -21,20 +28,23 @@ enum NbmDevices {
 };
 
 /* todo: add more and actually use them */
-enum NbmErrors { 
+enum nbm_errors { 
     NBM_ERROR_NO_ERROR = 0,
-    NBM_ERROR_IO_ERROR = 1, // must be 1, as IO call return bool with 1 as failure
+    NBM_ERROR_IO_ERROR = 1, /* must be 1, as IO call return bool with 1 as failure */
     NBM_ERROR_INVALID_VALUE = 2,
     NBM_ERROR_NOT_WRITEABLE = 4,
-    NMB_ERROR_NOT_INITALISED = 8,
-    NMB_ERROR_INVALID_REGISTER = 16,
-    NMB_ERROR_INVALID_FIELD = 32
+    NBM_ERROR_NOT_INITALISED = 8,
+    NBM_ERROR_INVALID_REGISTER = 16,
+    NBM_ERROR_INVALID_FIELD = 32,
+    NBM_ERROR_INVALID_DEVICE = 64
 };
 
-enum NbmI2cAddr { 
-    NBM_I2C_ADDR_SPI = 0,
-    NBM_I2C_ADDR_0x2E = 0x2E,
-    NBM_I2C_ADDR_0x2F = 0x2F
+union nbm_addr {
+    enum nbm_i2c_addr { 
+        NBM_I2C_ADDR_0x2E = 0x2E,
+        NBM_I2C_ADDR_0x2F = 0x2F
+    } i2c_addr;
+    uint8_t spi_ss_gpio;
 };
 
 #define NBM_FORM_FIELD_VALUE(reg_no, dev_mask, msb_bit_pos, lsb_bit_pos, solo_in_reg, writeable)  \
@@ -42,63 +52,63 @@ enum NbmI2cAddr {
     (((lsb_bit_pos) & 0x7) << 2) | (((solo_in_reg) & 0x1) << 1) | (((writeable) & 0x1) << 0))
 
 #define DEVICE_NBM_ALL (NBM5100A | NBM5100B | NBM7100A | NBM7100B)
-#define DEVICE_5100_SERIES  (NBM5100A | NBM5100B)
+#define DEVICE_5100_SERIES (NBM5100A | NBM5100B)
 #define DEVICE_7100_SERIES (NBM7100A | NBM7100B)
 #define DEVICE_I2C_SERIES (NBM5100A | NBM7100A)
 #define DEVICE_SPI_SERIES (NBM5100B | NBM7100B)
 
 /* will be 1 byte */
-enum NbmRegisters {
-    nbm_reg_status = 0,
-    nbm_reg_chenergy1 = 1,
-    nbm_reg_chenergy2 = 2,
-    nbm_reg_chenergy3 = 3,
-    nbm_reg_chenergy4 = 4,
-    nbm_reg_vcap = 5,
-    nbm_reg_vchend = 6,
-    nbm_reg_profile_msb = 7,
-    nbm_reg_command = 8,
-    nbm_reg_set1 = 9,
-    nbm_reg_set2 = 10,
-    nbm_reg_set3 = 11,
-    nbm_reg_set4 = 12,
-    nbm_reg_set5 = 13
+enum nbm_registers {
+    NBM_REG_STATUS = 0,
+    NBM_REG_CHENERGY1 = 1,
+    NBM_REG_CHENERGY2 = 2,
+    NBM_REG_CHENERGY3 = 3,
+    NBM_REG_CHENERGY4 = 4,
+    NBM_REG_VCAP = 5,
+    NBM_REG_VCHEND = 6,
+    NBM_REG_PROFILE_MSB = 7,
+    NBM_REG_COMMAND = 8,
+    NBM_REG_SET1 = 9,
+    NBM_REG_SET2 = 10,
+    NBM_REG_SET3 = 11,
+    NBM_REG_SET4 = 12,
+    NBM_REG_SET5 = 13
 };
 
-/* will be 2 bytes */
-enum NbmFields {
-    nbm_field_lowbat = NBM_FORM_FIELD_VALUE(nbm_reg_status, DEVICE_NBM_ALL, 7, 7, 0, 0),
-    nbm_field_ew = NBM_FORM_FIELD_VALUE(nbm_reg_status, DEVICE_NBM_ALL, 6, 6, 0, 0),
-    nbm_field_alrm = NBM_FORM_FIELD_VALUE(nbm_reg_status, DEVICE_NBM_ALL, 5, 5, 0, 0),
-    nbm_field_rdy = NBM_FORM_FIELD_VALUE(nbm_reg_status, DEVICE_NBM_ALL, 0, 0, 0, 0),
-    nbm_field_chengy = NBM_FORM_FIELD_VALUE(nbm_reg_chenergy1, DEVICE_NBM_ALL, 7, 0, 1, 0),
-    nbm_field_vcap = NBM_FORM_FIELD_VALUE(nbm_reg_vcap, DEVICE_NBM_ALL, 4, 0, 1, 0),
-    nbm_field_vchend = NBM_FORM_FIELD_VALUE(nbm_reg_vchend, DEVICE_NBM_ALL, 4, 0, 1, 0),
-    nbm_field_prof = NBM_FORM_FIELD_VALUE(nbm_reg_command, DEVICE_NBM_ALL, 7, 4, 0, 1), /* using command reg part */
-    nbm_field_rstpf = NBM_FORM_FIELD_VALUE(nbm_reg_command, DEVICE_NBM_ALL, 3, 3, 0, 1),
-    nbm_field_act = NBM_FORM_FIELD_VALUE(nbm_reg_command, DEVICE_NBM_ALL, 2, 2, 0, 1),
-    nbm_field_ecm = NBM_FORM_FIELD_VALUE(nbm_reg_command, DEVICE_NBM_ALL, 1, 1, 0, 1),
-    nbm_field_eod = NBM_FORM_FIELD_VALUE(nbm_reg_command, DEVICE_NBM_ALL, 0, 0, 0, 1),
-    nbm_field_vfix = NBM_FORM_FIELD_VALUE(nbm_reg_set1, DEVICE_NBM_ALL, 7, 4, 0, 1),
-    nbm_field_vset = NBM_FORM_FIELD_VALUE(nbm_reg_set1, DEVICE_NBM_ALL, 3, 0, 0, 1),
-    nbm_field_ich = NBM_FORM_FIELD_VALUE(nbm_reg_set2, DEVICE_NBM_ALL, 7, 5, 0, 1),
-    nbm_field_vdhhiz = NBM_FORM_FIELD_VALUE(nbm_reg_set2, DEVICE_NBM_ALL, 4, 4, 0, 1),
-    nbm_field_vmin = NBM_FORM_FIELD_VALUE(nbm_reg_set2, DEVICE_NBM_ALL, 2, 0, 0, 1),
-    nbm_field_automode = NBM_FORM_FIELD_VALUE(nbm_reg_set3, DEVICE_NBM_ALL, 7, 7, 0, 1),
-    nbm_field_eew = NBM_FORM_FIELD_VALUE(nbm_reg_set3, DEVICE_NBM_ALL, 4, 4, 0, 1),
-    nbm_field_vew = NBM_FORM_FIELD_VALUE(nbm_reg_set3, DEVICE_NBM_ALL, 3, 0, 0, 1),
-    nbm_field_balmode = NBM_FORM_FIELD_VALUE(nbm_reg_set4, DEVICE_NBM_ALL, 7, 6, 0, 1),
-    nbm_field_enbal = NBM_FORM_FIELD_VALUE(nbm_reg_set4, DEVICE_NBM_ALL, 5, 5, 0, 1),
-    nbm_field_vcapmax = NBM_FORM_FIELD_VALUE(nbm_reg_set4, DEVICE_NBM_ALL, 4, 4, 0, 1),
-    nbm_field_opt_marg = NBM_FORM_FIELD_VALUE(nbm_reg_set5, DEVICE_NBM_ALL, 1, 0, 1, 1)
+/* Will be 2 bytes */
+enum nbm_fields {
+    NBM_LOWBAT = NBM_FORM_FIELD_VALUE(NBM_REG_STATUS, DEVICE_NBM_ALL, 7, 7, 0, 0),
+    NBM_EW = NBM_FORM_FIELD_VALUE(NBM_REG_STATUS, DEVICE_NBM_ALL, 6, 6, 0, 0),
+    NBM_ALRM = NBM_FORM_FIELD_VALUE(NBM_REG_STATUS, DEVICE_NBM_ALL, 5, 5, 0, 0),
+    NBM_RDY = NBM_FORM_FIELD_VALUE(NBM_REG_STATUS, DEVICE_NBM_ALL, 0, 0, 0, 0),
+    NBM_CHENGY = NBM_FORM_FIELD_VALUE(NBM_REG_CHENERGY1, DEVICE_NBM_ALL, 7, 0, 1, 0),
+    NBM_VCAP = NBM_FORM_FIELD_VALUE(NBM_REG_VCAP, DEVICE_NBM_ALL, 4, 0, 1, 0),
+    NBM_VCHEND = NBM_FORM_FIELD_VALUE(NBM_REG_VCHEND, DEVICE_NBM_ALL, 4, 0, 1, 0),
+    NBM_PROF = NBM_FORM_FIELD_VALUE(NBM_REG_COMMAND, DEVICE_NBM_ALL, 7, 4, 0, 1), /* Using command reg part */
+    NBM_RSTPF = NBM_FORM_FIELD_VALUE(NBM_REG_COMMAND, DEVICE_NBM_ALL, 3, 3, 0, 1),
+    NBM_ACT = NBM_FORM_FIELD_VALUE(NBM_REG_COMMAND, DEVICE_NBM_ALL, 2, 2, 0, 1),
+    NBM_ECM = NBM_FORM_FIELD_VALUE(NBM_REG_COMMAND, DEVICE_NBM_ALL, 1, 1, 0, 1),
+    NBM_EOD = NBM_FORM_FIELD_VALUE(NBM_REG_COMMAND, DEVICE_NBM_ALL, 0, 0, 0, 1),
+    NBM_VFIX = NBM_FORM_FIELD_VALUE(NBM_REG_SET1, DEVICE_NBM_ALL, 7, 4, 0, 1),
+    NBM_VSET = NBM_FORM_FIELD_VALUE(NBM_REG_SET1, DEVICE_NBM_ALL, 3, 0, 0, 1),
+    NBM_ICH = NBM_FORM_FIELD_VALUE(NBM_REG_SET2, DEVICE_NBM_ALL, 7, 5, 0, 1),
+    NBM_VDHHIZ = NBM_FORM_FIELD_VALUE(NBM_REG_SET2, DEVICE_NBM_ALL, 4, 4, 0, 1),
+    NBM_VMIN = NBM_FORM_FIELD_VALUE(NBM_REG_SET2, DEVICE_NBM_ALL, 2, 0, 0, 1),
+    NBM_AUTOMODE = NBM_FORM_FIELD_VALUE(NBM_REG_SET3, DEVICE_I2C_SERIES, 7, 7, 0, 1),
+    NBM_EEW = NBM_FORM_FIELD_VALUE(NBM_REG_SET3, DEVICE_NBM_ALL, 4, 4, 0, 1),
+    NBM_VEW = NBM_FORM_FIELD_VALUE(NBM_REG_SET3, DEVICE_NBM_ALL, 3, 0, 0, 1),
+    NBM_BALMODE = NBM_FORM_FIELD_VALUE(NBM_REG_SET4, DEVICE_5100_SERIES, 7, 6, 0, 1),
+    NBM_ENBAL = NBM_FORM_FIELD_VALUE(NBM_REG_SET4, DEVICE_5100_SERIES, 5, 5, 0, 1),
+    NBM_VCAPMAX = NBM_FORM_FIELD_VALUE(NBM_REG_SET4, DEVICE_NBM_ALL, 4, 4, 0, 1),
+    NBM_OPT_MARG = NBM_FORM_FIELD_VALUE(NBM_REG_SET5, DEVICE_NBM_ALL, 1, 0, 1, 1)
 };
 
 /* clear this macro from namespace as wont be needed anymore */
 #undef NBM_FORM_FIELD_VALUE
 
 /* defines for all of the values we can set, the form of each term
- * is comprised of: NBM_{REG_NAME}_VAL_{DESC} where:
- *  REG_NAME: shorthand reigster name
+ * is comprised of: NBM_{FIELD_NAME}_VAL_{DESC} where:
+ *  FIELD_NAME: shorthand field name
  *  DESC: helpful (?) description of value 
  * use of these inplace of actual values is strongly encouraged. */
 #define NBM_LOWBAT_VAL_VBAT_LOW 1
@@ -137,7 +147,7 @@ enum NbmFields {
 #define NBM_VSET_VAL_2V7 6
 #define NBM_VSET_VAL_2V8 7
 #define NBM_VSET_VAL_2V9 8
-#define NBM_VSET_VAL_3V0 9
+#define NBM_VSET_VAL_3V0 9 /* default */
 #define NBM_VSET_VAL_3V1 10
 #define NBM_VSET_VAL_3V2 11
 #define NBM_VSET_VAL_3V3 12
@@ -231,34 +241,51 @@ enum NbmFields {
 #define NBM_VCAP_VAL_5V34 30
 #define NBM_VCAP_VAL_5V54 31
 
-#define NBM_VCAP_VAL_1mA10 0
-#define NBM_VCAP_VAL_2mA30 1
-#define NBM_VCAP_VAL_3mA15 2
-#define NBM_VCAP_VAL_4mA90 3
+#define NBM_BALMODE_VAL_1mA10 0
+#define NBM_BALMODE_VAL_2mA30 1
+#define NBM_BALMODE_VAL_3mA15 2
+#define NBM_BALMODE_VAL_4mA90 3
 
 #define NBM_ENBAL_VAL_INACTIVE 0
 #define NBM_ENBAL_VAL_ACTIVE 1
 
-/* main user faceing datatype NbmDevice */
-struct NbmDevice {
-    enum NbmDevices device_type;
-    enum NbmErrors error_code;
-    enum NbmI2cAddr i2c_addr;
+/* main user facing datatype NbmDevice */
+struct nbm_device {
+    enum nbm_types device_type;
+    enum nbm_errors error_code;
+    union nbm_addr addr;
     /* user defined so will be SPI or I2C calls to MCU */
     bool (*write_bytes_fcn)(uint8_t i2c_addr, uint8_t reg, const uint8_t *value, uint8_t len);
     bool (*read_bytes_fcn)(uint8_t i2c_addr, uint8_t reg, uint8_t *value, uint8_t len);
+    /* user defined functions to read/write the two gpio pins */
+    bool (*read_ready_pin_fcn)(void* pin, bool *state);
+    bool (*write_start_pin_fcn)(void* pin, bool state);
     /* user defined if null will not be used */
     void (*on_error_callback)(uint8_t error_code);
 };
 
-/* init fcn for the nbm, user passes the two callbacks and devices type */
-void nbm_init(struct NbmDevice *dev, enum NbmDevices device_type, enum NbmI2cAddr i2c_addr,
+/* init fcn for the nbm, user passes the callbacks and devices settings */
+void nbm_init(struct nbm_device *dev, enum nbm_types device_type, uint8_t addr,
     bool (*write_bytes_fcn)(uint8_t i2c_addr, uint8_t reg, const uint8_t *value, uint8_t len),
     bool (*read_bytes_fcn)(uint8_t i2c_addr, uint8_t reg, uint8_t *value, uint8_t len),
     void (*on_error_callback)(uint8_t error_code));
 
 /* now the useful functions */
-void nbm_write_field(struct NbmDevice *dev, enum NbmFields field, uint8_t value);
-void nbm_read_field(struct NbmDevice *dev, enum NbmFields field, void *value);
-void nbm_read_reg(struct NbmDevice *dev, enum NbmRegisters, uint8_t *value, uint8_t size);
-void nbm_write_reg(struct NbmDevice *dev, enum NbmRegisters, const uint8_t *value, uint8_t size);
+void nbm_write(struct nbm_device *dev, enum nbm_fields field, uint8_t value);
+void nbm_read(struct nbm_device *dev, enum nbm_fields field, void *value);
+void nbm_read_reg(struct nbm_device *dev, enum nbm_registers, uint8_t *value, uint8_t size);
+void nbm_write_reg(struct nbm_device *dev, enum nbm_registers, const uint8_t *value, uint8_t size);
+void nbm_read_ready(struct nbm_device *dev, bool *value);
+void nbm_write_start(struct nbm_device *dev, bool *value);
+
+/* some helpers for voltage comparisons you are likely to use */
+uint16_t nbm_vfix_to_mv(uint8_t vfix);
+uint16_t nbm_vcap_to_mv(uint8_t vcap);
+uint16_t nbm_vcapmax_to_mv(uint8_t vcapmax);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* include guard */
+
