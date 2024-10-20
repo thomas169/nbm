@@ -112,12 +112,11 @@ void nbm_write(struct nbm_device *dev, enum nbm_fields field, uint8_t value) {
         SET_ERROR_AND_RUN_CALLBACK(dev, NBM_ERROR_INVALID_VALUE);
         return;
     }
-    volatile uint8_t c;
+    
     /* if the field is alone in the given register we avoid the need to read it
      * before any writes, and subsquent faffing around with bit shifting. */
     if (!GET_SOLO_IN_REG_FROM_FIELD(field)) {
         nbm_read_reg(dev, reg, &tmp, 1);
-        c  = ~GET_MASK_FROM_FIELD(field);
         tmp &= ~GET_MASK_FROM_FIELD(field);
         masked_value <<= GET_LSB_POS_FROM_FIELD(field);
         masked_value |= tmp;
